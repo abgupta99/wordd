@@ -207,12 +207,10 @@ def build_header(
     clear_story(header)
 
     usable_width = section.page_width - section.left_margin - section.right_margin
-    full_width = section.page_width
-    table = header.add_table(rows=1, cols=3, width=full_width)
+    table = header.add_table(rows=1, cols=3, width=usable_width)
     table.autofit = False
     table.allow_autofit = False
-    table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    set_table_full_width(table, section)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
     left_cell = table.cell(0, 0)
     center_cell = table.cell(0, 1)
@@ -221,13 +219,13 @@ def build_header(
     # Force column widths (Word often ignores cell.width unless columns are set).
     left_w = Inches(1.00)
     right_w = Inches(1.05)
-    if full_width < (left_w + right_w + Inches(2.6)):
+    if usable_width < (left_w + right_w + Inches(2.6)):
         # Scale down side columns if the page is narrow / margins large.
-        scale = int(full_width) / int(left_w + right_w + Inches(2.6))
+        scale = int(usable_width) / int(left_w + right_w + Inches(2.6))
         scale = max(0.6, min(1.0, scale))
         left_w = int(left_w * scale)
         right_w = int(right_w * scale)
-    center_w = full_width - left_w - right_w
+    center_w = usable_width - left_w - right_w
 
     table.columns[0].width = left_w
     table.columns[1].width = center_w
@@ -239,7 +237,6 @@ def build_header(
     for cell in (left_cell, center_cell, right_cell):
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
-        set_cell_border(cell, "bottom", 18)
 
     # Swap: right image on left, left image on right (per user request).
     p_left = left_cell.paragraphs[0]
@@ -275,6 +272,18 @@ def build_header(
     style_paragraph(p_right_2, WD_ALIGN_PARAGRAPH.RIGHT)
     run = p_right_2.add_run("ELSEVIER")
     style_run(run, color=BLACK)
+
+    # Add a full-width red rule under the header content (spans into margins).
+    rule_table = header.add_table(rows=1, cols=1, width=section.page_width)
+    rule_table.autofit = False
+    rule_table.allow_autofit = False
+    rule_table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    set_table_full_width(rule_table, section)
+    rule_cell = rule_table.cell(0, 0)
+    set_cell_margins(rule_cell, top=0, start=0, bottom=0, end=0)
+    set_cell_border(rule_cell, "bottom", 18)
+    if rule_cell.paragraphs:
+        style_paragraph(rule_cell.paragraphs[0], WD_ALIGN_PARAGRAPH.LEFT)
 
 
 def build_footer(section):
