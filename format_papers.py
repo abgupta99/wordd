@@ -126,7 +126,12 @@ def set_cell_margins(cell, top, start, bottom, end):
 
 def set_table_full_width(table, section):
     # Expand the header table to the full page width by offsetting the left margin.
-    tbl_pr = table._tbl.get_or_add_tblPr()
+    tbl = table._tbl
+    tbl_pr = getattr(tbl, "tblPr", None)
+    if tbl_pr is None:
+        tbl_pr = OxmlElement("w:tblPr")
+        # tblPr should come before tblGrid/tr rows.
+        tbl.insert(0, tbl_pr)
 
     tbl_w = tbl_pr.first_child_found_in("w:tblW")
     if tbl_w is None:
