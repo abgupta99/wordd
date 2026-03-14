@@ -3,6 +3,9 @@ services:
     name: wordd
     runtime: docker
     plan: free
+    healthCheckPath: /healthz
     envVars:
       - key: MAX_UPLOAD_MB
         value: "50"
+      - key: REQUEST_TIMEOUT
+        value: "600"

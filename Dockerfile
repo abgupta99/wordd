@@ -2,11 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Enable .doc -> .docx conversion via LibreOffice.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libreoffice \
-  && rm -rf /var/lib/apt/lists/*
-
 # Hugging Face Spaces runs containers as a non-root user by default in their examples.
 RUN useradd -m -u 1000 user
 
@@ -20,9 +15,11 @@ USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 
 ENV HOST=0.0.0.0
-ENV PORT=10000
 ENV MAX_UPLOAD_MB=50
+ENV REQUEST_TIMEOUT=600
+ENV WEB_CONCURRENCY=1
+ENV GUNICORN_THREADS=4
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} webapp:app --threads 4 --timeout 180"]
+CMD ["sh", "-c", "exec gunicorn webapp:app --bind 0.0.0.0:${PORT:-10000} --workers ${WEB_CONCURRENCY} --threads ${GUNICORN_THREADS} --timeout ${REQUEST_TIMEOUT}"]

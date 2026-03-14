@@ -124,6 +124,11 @@ def index():
     return Response(FORM_HTML, mimetype="text/html")
 
 
+@app.get("/healthz")
+def healthz():
+    return Response("ok", mimetype="text/plain")
+
+
 def _format_uploaded_files():
     try:
         start_page = int(request.form.get("start_page", "2966"))
