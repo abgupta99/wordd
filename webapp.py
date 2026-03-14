@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 try:
-    from flask import Flask, Response, abort, request, send_from_directory
+    from flask import Flask, Response, request
 except ModuleNotFoundError as exc:
     raise SystemExit(
         "Missing dependency: Flask.\n\n"
@@ -22,7 +22,6 @@ from format_papers import FormatConfig, format_docx_files
 
 
 ROOT_DIR = Path(__file__).resolve().parent
-FRONTEND_DIST_DIR = ROOT_DIR / "frontend" / "dist"
 
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "50"))
 
@@ -62,43 +61,67 @@ def _convert_doc_to_docx(input_path: Path, out_dir: Path) -> Path:
     return converted
 
 
+FORM_HTML = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Batch Word Formatter</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 40px; max-width: 860px; }
+      h1 { margin: 0 0 10px; }
+      .card { border: 1px solid #ddd; border-radius: 12px; padding: 18px; }
+      label { display: block; margin: 12px 0 6px; font-weight: 600; }
+      input[type="text"], input[type="number"] { width: 280px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 10px; }
+      input[type="file"] { width: 100%; }
+      .row { display: flex; gap: 16px; flex-wrap: wrap; }
+      .hint { color: #555; font-size: 14px; }
+      button { margin-top: 14px; padding: 10px 14px; border: 0; border-radius: 10px; background: #111; color: #fff; font-weight: 700; cursor: pointer; }
+      button:hover { background: #000; }
+      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Batch Word Formatter</h1>
+    <p class="hint">Upload multiple <code>.docx</code> files, apply Times New Roman 9pt + journal header/footer, then download a ZIP.</p>
+    <div class="card">
+      <form action="/format" method="post" enctype="multipart/form-data">
+        <label>Documents</label>
+        <input type="file" name="files" multiple required accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <div class="row">
+          <div>
+            <label>Start page</label>
+            <input type="number" name="start_page" value="2966" min="1" step="1" />
+          </div>
+          <div>
+            <label>Volume</label>
+            <input type="text" name="volume" value="36" />
+          </div>
+          <div>
+            <label>Paper year</label>
+            <input type="text" name="paper_year" value="2025" />
+          </div>
+          <div>
+            <label>Issue</label>
+            <input type="text" name="issue" value="2" />
+          </div>
+        </div>
+        <button type="submit">Format and Download ZIP</button>
+      </form>
+    </div>
+    <p class="hint">Note: <code>.doc</code> uploads require LibreOffice (<code>soffice</code>) installed.</p>
+  </body>
+</html>
+"""
+
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 
 @app.get("/")
 def index():
-    index_path = FRONTEND_DIST_DIR / "index.html"
-    if index_path.exists():
-        return send_from_directory(FRONTEND_DIST_DIR, "index.html")
-    return Response(
-        "Frontend not built.\n\n"
-        "To run the React UI in dev mode:\n"
-        "  (1) python3 webapp.py\n"
-        "  (2) cd frontend && npm install && npm run dev\n\n"
-        "To build the React UI for Flask to serve:\n"
-        "  cd frontend && npm install && npm run build\n",
-        mimetype="text/plain",
-    )
-
-
-@app.get("/<path:path>")
-def static_or_spa(path: str):
-    if path.startswith("api/"):
-        abort(404)
-
-    if not FRONTEND_DIST_DIR.exists():
-        abort(404)
-
-    file_path = FRONTEND_DIST_DIR / path
-    if file_path.exists() and file_path.is_file():
-        return send_from_directory(FRONTEND_DIST_DIR, path)
-
-    index_path = FRONTEND_DIST_DIR / "index.html"
-    if index_path.exists():
-        return send_from_directory(FRONTEND_DIST_DIR, "index.html")
-
-    abort(404)
+    return Response(FORM_HTML, mimetype="text/html")
 
 
 def _format_uploaded_files():
@@ -162,11 +185,6 @@ def _format_uploaded_files():
             mimetype="application/zip",
             headers={"Content-Disposition": 'attachment; filename="formatted_docs.zip"'},
         )
-
-
-@app.post("/api/format")
-def api_format_endpoint():
-    return _format_uploaded_files()
 
 
 @app.post("/format")
