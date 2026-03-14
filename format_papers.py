@@ -153,6 +153,20 @@ def ensure_header_clearance(section, minimum_top_margin=Inches(1.15)):
         section.top_margin = minimum_top_margin
 
 
+def _iter_header_variants(section):
+    for name in ("header", "first_page_header", "even_page_header"):
+        part = getattr(section, name, None)
+        if part is not None:
+            yield part
+
+
+def _iter_footer_variants(section):
+    for name in ("footer", "first_page_footer", "even_page_footer"):
+        part = getattr(section, name, None)
+        if part is not None:
+            yield part
+
+
 def style_run(run, color=BLACK, bold=True):
     run.bold = bold
     run.font.name = "Times New Roman"
@@ -200,7 +214,8 @@ def clean_blank_paragraphs(doc):
                 parent.remove(p._element)
 
 
-def build_header(
+def _populate_header_story(
+    header,
     section,
     start_page,
     end_page,
@@ -211,10 +226,6 @@ def build_header(
     paper_year=PAPER_YEAR,
     issue=ISSUE,
 ):
-    header = section.header
-    header.is_linked_to_previous = False
-    ensure_header_clearance(section)
-    section.header_distance = Inches(0.15)
     clear_story(header)
 
     usable_width = section.page_width - section.left_margin - section.right_margin
@@ -285,10 +296,38 @@ def build_header(
     run = p_right_2.add_run("ELSEVIER")
     style_run(run, color=BLACK)
 
-def build_footer(section):
-    footer = section.footer
-    footer.is_linked_to_previous = False
-    section.footer_distance = Inches(0.2)
+
+def build_header(
+    section,
+    start_page,
+    end_page,
+    left_image,
+    right_image,
+    *,
+    volume="36",
+    paper_year=PAPER_YEAR,
+    issue=ISSUE,
+):
+    ensure_header_clearance(section)
+    section.header_distance = Inches(0.15)
+    section.different_first_page_header_footer = False
+
+    for header in _iter_header_variants(section):
+        header.is_linked_to_previous = False
+        _populate_header_story(
+            header,
+            section,
+            start_page,
+            end_page,
+            left_image,
+            right_image,
+            volume=volume,
+            paper_year=paper_year,
+            issue=issue,
+        )
+
+
+def _populate_footer_story(footer, section):
     clear_story(footer)
 
     usable_width = section.page_width - section.left_margin - section.right_margin
@@ -335,6 +374,15 @@ def build_footer(section):
     run = p_right.add_run()
     style_run(run, color=BLACK)
     add_page_field(run)
+
+
+def build_footer(section):
+    section.footer_distance = Inches(0.2)
+    section.different_first_page_header_footer = False
+
+    for footer in _iter_footer_variants(section):
+        footer.is_linked_to_previous = False
+        _populate_footer_story(footer, section)
 
 
 def apply_font(doc):
@@ -394,6 +442,7 @@ def format_docx_files(
         end_page = current_page + page_count - 1
 
         doc = Document(str(input_path))
+        doc.settings.odd_and_even_pages_header_footer = False
         apply_font(doc)
         for section in doc.sections:
             build_header(
@@ -434,6 +483,7 @@ def format_papers(directory, start_page=START_PAGE):
         end_page = current_page + page_count - 1
 
         doc = Document(path)
+        doc.settings.odd_and_even_pages_header_footer = False
         apply_font(doc)
         for section in doc.sections:
             build_header(
