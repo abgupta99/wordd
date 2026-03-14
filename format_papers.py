@@ -285,6 +285,8 @@ def build_header(
     rule_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     set_table_full_width(rule_table, section)
     rule_cell = rule_table.cell(0, 0)
+    rule_table.columns[0].width = section.page_width
+    rule_cell.width = section.page_width
     set_cell_margins(rule_cell, top=0, start=0, bottom=0, end=0)
     set_cell_border(rule_cell, "bottom", 18)
     if rule_cell.paragraphs:
