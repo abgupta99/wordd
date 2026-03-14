@@ -148,6 +148,11 @@ def set_table_full_width(table, section):
     tbl_ind.set(qn("w:type"), "dxa")
 
 
+def ensure_header_clearance(section, minimum_top_margin=Inches(1.15)):
+    if int(section.top_margin) < int(minimum_top_margin):
+        section.top_margin = minimum_top_margin
+
+
 def style_run(run, color=BLACK, bold=True):
     run.bold = bold
     run.font.name = "Times New Roman"
@@ -208,6 +213,7 @@ def build_header(
 ):
     header = section.header
     header.is_linked_to_previous = False
+    ensure_header_clearance(section)
     section.header_distance = Inches(0.15)
     clear_story(header)
 
@@ -242,6 +248,7 @@ def build_header(
     for cell in (left_cell, center_cell, right_cell):
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+        set_cell_border(cell, "bottom", 18)
 
     # Swap: right image on left, left image on right (per user request).
     p_left = left_cell.paragraphs[0]
@@ -277,21 +284,6 @@ def build_header(
     style_paragraph(p_right_2, WD_ALIGN_PARAGRAPH.RIGHT)
     run = p_right_2.add_run("ELSEVIER")
     style_run(run, color=BLACK)
-
-    # Add a full-width red rule under the header content (spans into margins).
-    rule_table = header.add_table(rows=1, cols=1, width=section.page_width)
-    rule_table.autofit = False
-    rule_table.allow_autofit = False
-    rule_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    set_table_full_width(rule_table, section)
-    rule_cell = rule_table.cell(0, 0)
-    rule_table.columns[0].width = section.page_width
-    rule_cell.width = section.page_width
-    set_cell_margins(rule_cell, top=0, start=0, bottom=0, end=0)
-    set_cell_border(rule_cell, "bottom", 18)
-    if rule_cell.paragraphs:
-        style_paragraph(rule_cell.paragraphs[0], WD_ALIGN_PARAGRAPH.LEFT)
-
 
 def build_footer(section):
     footer = section.footer
@@ -372,19 +364,8 @@ def apply_font(doc):
 
     paragraphs = list(iter_paragraphs(doc))
 
-    abstract_idx = None
-    for idx, paragraph in enumerate(paragraphs):
-        text = (paragraph.text or "").strip()
-        if re.match(r"^abstract\\b", text, flags=re.IGNORECASE):
-            abstract_idx = idx
-            break
-
-    for idx, paragraph in enumerate(paragraphs):
-        alignment = paragraph.alignment
-        if abstract_idx is not None and idx < abstract_idx and paragraph.text.strip():
-            alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        style_paragraph(paragraph, alignment)
+    for paragraph in paragraphs:
+        style_paragraph(paragraph, paragraph.alignment)
         for run in paragraph.runs:
             run.font.name = "Times New Roman"
             run.font.size = Pt(9)
