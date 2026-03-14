@@ -1,0 +1,14 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.docx
+*.pdf
+*.zip
+.cloudflared/
+.msw_assets/
+hf_space/.git/
+hf_space/
+frontend/node_modules/
+frontend/dist/
+token.txt

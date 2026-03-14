@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: wordd
+    runtime: docker
+    plan: free
+    envVars:
+      - key: MAX_UPLOAD_MB
+        value: "50"
