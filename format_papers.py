@@ -124,6 +124,25 @@ def set_cell_margins(cell, top, start, bottom, end):
         margin.set(qn("w:type"), "dxa")
 
 
+def set_table_full_width(table, section):
+    # Expand the header table to the full page width by offsetting the left margin.
+    tbl_pr = table._tbl.get_or_add_tblPr()
+
+    tbl_w = tbl_pr.first_child_found_in("w:tblW")
+    if tbl_w is None:
+        tbl_w = OxmlElement("w:tblW")
+        tbl_pr.append(tbl_w)
+    tbl_w.set(qn("w:w"), str(int(section.page_width)))
+    tbl_w.set(qn("w:type"), "dxa")
+
+    tbl_ind = tbl_pr.first_child_found_in("w:tblInd")
+    if tbl_ind is None:
+        tbl_ind = OxmlElement("w:tblInd")
+        tbl_pr.append(tbl_ind)
+    tbl_ind.set(qn("w:w"), str(-int(section.left_margin)))
+    tbl_ind.set(qn("w:type"), "dxa")
+
+
 def style_run(run, color=BLACK, bold=True):
     run.bold = bold
     run.font.name = "Times New Roman"
@@ -188,10 +207,12 @@ def build_header(
     clear_story(header)
 
     usable_width = section.page_width - section.left_margin - section.right_margin
-    table = header.add_table(rows=1, cols=3, width=usable_width)
+    full_width = section.page_width
+    table = header.add_table(rows=1, cols=3, width=full_width)
     table.autofit = False
     table.allow_autofit = False
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    set_table_full_width(table, section)
 
     left_cell = table.cell(0, 0)
     center_cell = table.cell(0, 1)
@@ -200,13 +221,13 @@ def build_header(
     # Force column widths (Word often ignores cell.width unless columns are set).
     left_w = Inches(1.00)
     right_w = Inches(1.05)
-    if usable_width < (left_w + right_w + Inches(2.6)):
+    if full_width < (left_w + right_w + Inches(2.6)):
         # Scale down side columns if the page is narrow / margins large.
-        scale = int(usable_width) / int(left_w + right_w + Inches(2.6))
+        scale = int(full_width) / int(left_w + right_w + Inches(2.6))
         scale = max(0.6, min(1.0, scale))
         left_w = int(left_w * scale)
         right_w = int(right_w * scale)
-    center_w = usable_width - left_w - right_w
+    center_w = full_width - left_w - right_w
 
     table.columns[0].width = left_w
     table.columns[1].width = center_w
