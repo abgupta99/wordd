@@ -2,7 +2,8 @@
 
 This repo includes a tiny local website to batch-format Word documents:
 
-- Body font: Times New Roman, 9pt
+- Choose a journal format (MSW, IJRSS, or IJMIE)
+- Body font: Times New Roman (MSW: 9pt, IJRSS/IJMIE: 12pt)
 - Header + footer + page numbering (based on `format_papers.py`)
 - Upload multiple files → download a ZIP of formatted `.docx`
 - Header fields: Volume (default 36), Issue, Year, Start page

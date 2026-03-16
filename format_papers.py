@@ -27,13 +27,28 @@ START_PAGE = 2966
 
 @dataclass(frozen=True)
 class FormatConfig:
+    template: str = "msw"  # "msw" | "ijrss" | "ijmie"
     volume: str = "36"
     paper_year: str = PAPER_YEAR
+    paper_month: str = "March"
     issue: str = ISSUE
     start_page: int = START_PAGE
 
 RED = RGBColor(192, 0, 0)
 BLACK = RGBColor(0, 0, 0)
+IJRSS_BLUE = RGBColor(0, 0, 255)
+
+IJRSS_ISSN = "2249-2496"
+IJRSS_IMPACT_FACTOR = "7.081"
+IJRSS_HOMEPAGE = "http://www.ijmra.us"
+IJRSS_EMAIL = "editorijmie@gmail.com"
+
+IJMIE_ISSN = "2249-0558"
+IJMIE_IMPACT_FACTOR = "7.119"
+
+IJRSS_ORANGE_HEX = "ED7D31"
+IJRSS_GRAY_HEX = "7F7F7F"
+
 PAGE_OVERRIDES = {
     "Paper 2.docx": 5,
     "Paper 3.docx": 5,
@@ -91,7 +106,7 @@ def clear_story(story):
         story._element.remove(child)
 
 
-def set_cell_border(cell, edge, size):
+def set_cell_border(cell, edge, size, *, color="C00000"):
     tc_pr = cell._tc.get_or_add_tcPr()
     tc_borders = tc_pr.first_child_found_in("w:tcBorders")
     if tc_borders is None:
@@ -105,7 +120,7 @@ def set_cell_border(cell, edge, size):
 
     border.set(qn("w:val"), "single")
     border.set(qn("w:sz"), str(size))
-    border.set(qn("w:color"), "C00000")
+    border.set(qn("w:color"), str(color))
 
 
 def set_cell_margins(cell, top, start, bottom, end):
@@ -171,6 +186,24 @@ def style_run(run, color=BLACK, bold=True):
     run.bold = bold
     run.font.name = "Times New Roman"
     run.font.size = Pt(9)
+    run.font.color.rgb = color
+
+
+def style_run_custom(
+    run,
+    *,
+    font_name="Times New Roman",
+    color=BLACK,
+    size=Pt(12),
+    bold=False,
+    italic=False,
+    underline=False,
+):
+    run.bold = bool(bold)
+    run.italic = bool(italic)
+    run.underline = bool(underline)
+    run.font.name = font_name
+    run.font.size = size
     run.font.color.rgb = color
 
 
@@ -327,6 +360,275 @@ def build_header(
         )
 
 
+def _populate_header_story_ijrss(
+    header,
+    section,
+    *,
+    volume,
+    issue,
+    paper_year,
+    paper_month,
+):
+    clear_story(header)
+
+    usable_width = section.page_width - section.left_margin - section.right_margin
+    table = header.add_table(rows=1, cols=1, width=usable_width)
+    table.autofit = False
+    table.allow_autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    cell = table.cell(0, 0)
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+    set_cell_border(cell, "bottom", 18, color=IJRSS_ORANGE_HEX)
+
+    p_title = cell.paragraphs[0]
+    style_paragraph(p_title, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_title.add_run("International Journal of Research in Social Sciences"),
+        font_name="Calibri",
+        color=IJRSS_BLUE,
+        size=Pt(16),
+        bold=True,
+    )
+
+    p_vol = cell.add_paragraph()
+    style_paragraph(p_vol, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_vol.add_run(f"Vol. {volume} Issue {issue}, {paper_month} {paper_year}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_issn = cell.add_paragraph()
+    style_paragraph(p_issn, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_issn.add_run(f"ISSN: {IJRSS_ISSN} Impact Factor: {IJRSS_IMPACT_FACTOR}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_home = cell.add_paragraph()
+    style_paragraph(p_home, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_home.add_run("Journal Homepage: "),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+    style_run_custom(
+        p_home.add_run(IJRSS_HOMEPAGE),
+        font_name="Calibri",
+        color=IJRSS_BLUE,
+        size=Pt(11),
+        bold=False,
+        underline=True,
+    )
+    style_run_custom(
+        p_home.add_run(f", Email: {IJRSS_EMAIL}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_desc = cell.add_paragraph()
+    style_paragraph(p_desc, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_desc.add_run(
+            "Double-Blind Peer Reviewed Refereed Open Access International Journal - Included in the "
+            "International Serial Directories Indexed & Listed at: Ulrich's Periodicals Directory ©, "
+            "U.S.A., Open J-Gate as well as in Cabell’s Directories of Publishing Opportunities, U.S.A"
+        ),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+
+def build_header_ijrss(
+    section,
+    *,
+    volume,
+    issue,
+    paper_year,
+    paper_month,
+):
+    ensure_header_clearance(section, minimum_top_margin=Inches(1.45))
+    section.header_distance = Inches(0.2)
+    section.different_first_page_header_footer = False
+
+    for header in _iter_header_variants(section):
+        header.is_linked_to_previous = False
+        _populate_header_story_ijrss(
+            header,
+            section,
+            volume=volume,
+            issue=issue,
+            paper_year=paper_year,
+            paper_month=paper_month,
+        )
+
+
+def _populate_header_story_ijmie(
+    header,
+    section,
+    *,
+    volume,
+    issue,
+    paper_year,
+    paper_month,
+):
+    clear_story(header)
+
+    usable_width = section.page_width - section.left_margin - section.right_margin
+    table = header.add_table(rows=1, cols=1, width=usable_width)
+    table.autofit = False
+    table.allow_autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    cell = table.cell(0, 0)
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+    set_cell_border(cell, "bottom", 18, color=IJRSS_ORANGE_HEX)
+
+    p_title = cell.paragraphs[0]
+    style_paragraph(p_title, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_title.add_run("International Journal of Management, IT & Engineering"),
+        font_name="Calibri",
+        color=IJRSS_BLUE,
+        size=Pt(16),
+        bold=True,
+    )
+
+    p_vol = cell.add_paragraph()
+    style_paragraph(p_vol, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_vol.add_run(f"Vol. {volume} Issue {issue}, {paper_month} {paper_year}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_issn = cell.add_paragraph()
+    style_paragraph(p_issn, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_issn.add_run(f"ISSN: {IJMIE_ISSN} Impact Factor: {IJMIE_IMPACT_FACTOR}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_home = cell.add_paragraph()
+    style_paragraph(p_home, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_home.add_run("Journal Homepage: "),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+    style_run_custom(
+        p_home.add_run(IJRSS_HOMEPAGE),
+        font_name="Calibri",
+        color=IJRSS_BLUE,
+        size=Pt(11),
+        bold=False,
+        underline=True,
+    )
+    style_run_custom(
+        p_home.add_run(f", Email: {IJRSS_EMAIL}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+    p_desc = cell.add_paragraph()
+    style_paragraph(p_desc, WD_ALIGN_PARAGRAPH.LEFT)
+    style_run_custom(
+        p_desc.add_run(
+            "Double-Blind Peer Reviewed Refereed Open Access International Journal - Included in the "
+            "International Serial Directories Indexed & Listed at: Ulrich's Periodicals Directory ©, "
+            "U.S.A., Open J-Gate as well as in Cabell’s Directories of Publishing Opportunities, U.S.A"
+        ),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(11),
+        bold=False,
+    )
+
+
+def _populate_header_story_ijmie_inner(header, section):
+    clear_story(header)
+
+    usable_width = section.page_width - section.left_margin - section.right_margin
+    table = header.add_table(rows=1, cols=1, width=usable_width)
+    table.autofit = False
+    table.allow_autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    cell = table.cell(0, 0)
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+    set_cell_border(cell, "bottom", 6, color="000000")
+
+    p = cell.paragraphs[0]
+    style_paragraph(p, WD_ALIGN_PARAGRAPH.CENTER)
+    style_run_custom(
+        p.add_run(f"ISSN: {IJMIE_ISSN} \U0001F4D6 Impact Factor: {IJMIE_IMPACT_FACTOR}"),
+        font_name="Calibri",
+        color=BLACK,
+        size=Pt(12),
+        bold=False,
+    )
+
+
+def build_header_ijmie(
+    section,
+    *,
+    volume,
+    issue,
+    paper_year,
+    paper_month,
+):
+    # First page: full IJMIE header. Other pages: compact ISSN/Impact header line.
+    section.top_margin = Inches(0.9)
+    section.header_distance = Inches(0.05)
+    section.different_first_page_header_footer = True
+
+    first = getattr(section, "first_page_header", None)
+    if first is not None:
+        first.is_linked_to_previous = False
+        _populate_header_story_ijmie(
+            first,
+            section,
+            volume=volume,
+            issue=issue,
+            paper_year=paper_year,
+            paper_month=paper_month,
+        )
+
+    primary = getattr(section, "header", None)
+    if primary is not None:
+        primary.is_linked_to_previous = False
+        _populate_header_story_ijmie_inner(primary, section)
+
+    even = getattr(section, "even_page_header", None)
+    if even is not None:
+        even.is_linked_to_previous = False
+        _populate_header_story_ijmie_inner(even, section)
+
+
 def _populate_footer_story(footer, section):
     clear_story(footer)
 
@@ -385,7 +687,151 @@ def build_footer(section):
         _populate_footer_story(footer, section)
 
 
-def apply_font(doc):
+def _populate_footer_story_ijrss(footer, section):
+    clear_story(footer)
+
+    usable_width = section.page_width - section.left_margin - section.right_margin
+    table = footer.add_table(rows=1, cols=2, width=usable_width)
+    table.autofit = False
+    table.allow_autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    left_cell = table.cell(0, 0)
+    right_cell = table.cell(0, 1)
+
+    left_w = Inches(0.85)
+    right_w = usable_width - left_w
+    if right_w < Inches(2.0):
+        left_w = int(usable_width * 0.2)
+        right_w = usable_width - left_w
+
+    table.columns[0].width = left_w
+    table.columns[1].width = right_w
+    left_cell.width = left_w
+    right_cell.width = right_w
+
+    for cell in (left_cell, right_cell):
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+        set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+        set_cell_border(cell, "top", 12, color=IJRSS_GRAY_HEX)
+
+    set_cell_border(left_cell, "right", 12, color=IJRSS_GRAY_HEX)
+
+    p_left = left_cell.paragraphs[0]
+    style_paragraph(p_left, WD_ALIGN_PARAGRAPH.LEFT)
+    run = p_left.add_run()
+    style_run_custom(run, color=IJRSS_BLUE, size=Pt(22), bold=True, italic=True)
+    add_page_field(run)
+
+    p_right_1 = right_cell.paragraphs[0]
+    style_paragraph(p_right_1, WD_ALIGN_PARAGRAPH.RIGHT)
+    style_run_custom(
+        p_right_1.add_run("International Journal of Research in Social Sciences"),
+        color=BLACK,
+        size=Pt(12),
+        bold=False,
+        italic=True,
+    )
+
+    p_right_2 = right_cell.add_paragraph()
+    style_paragraph(p_right_2, WD_ALIGN_PARAGRAPH.RIGHT)
+    style_run_custom(
+        p_right_2.add_run(IJRSS_HOMEPAGE),
+        color=IJRSS_BLUE,
+        size=Pt(12),
+        bold=False,
+        underline=True,
+    )
+    style_run_custom(
+        p_right_2.add_run(f", Email: {IJRSS_EMAIL}"),
+        color=BLACK,
+        size=Pt(12),
+        bold=False,
+    )
+
+
+def build_footer_ijrss(section):
+    section.footer_distance = Inches(0.25)
+    section.different_first_page_header_footer = False
+
+    for footer in _iter_footer_variants(section):
+        footer.is_linked_to_previous = False
+        _populate_footer_story_ijrss(footer, section)
+
+
+def _populate_footer_story_ijmie(footer, section):
+    clear_story(footer)
+
+    usable_width = section.page_width - section.left_margin - section.right_margin
+    table = footer.add_table(rows=1, cols=2, width=usable_width)
+    table.autofit = False
+    table.allow_autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    left_cell = table.cell(0, 0)
+    right_cell = table.cell(0, 1)
+
+    left_w = Inches(0.85)
+    right_w = usable_width - left_w
+    if right_w < Inches(2.0):
+        left_w = int(usable_width * 0.2)
+        right_w = usable_width - left_w
+
+    table.columns[0].width = left_w
+    table.columns[1].width = right_w
+    left_cell.width = left_w
+    right_cell.width = right_w
+
+    for cell in (left_cell, right_cell):
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+        set_cell_margins(cell, top=0, start=0, bottom=0, end=0)
+        set_cell_border(cell, "top", 12, color=IJRSS_GRAY_HEX)
+
+    set_cell_border(left_cell, "right", 12, color=IJRSS_GRAY_HEX)
+
+    p_left = left_cell.paragraphs[0]
+    style_paragraph(p_left, WD_ALIGN_PARAGRAPH.LEFT)
+    run = p_left.add_run()
+    style_run_custom(run, color=IJRSS_BLUE, size=Pt(22), bold=True, italic=True)
+    add_page_field(run)
+
+    p_right_1 = right_cell.paragraphs[0]
+    style_paragraph(p_right_1, WD_ALIGN_PARAGRAPH.RIGHT)
+    style_run_custom(
+        p_right_1.add_run("International journal of Management, IT and Engineering"),
+        color=BLACK,
+        size=Pt(12),
+        bold=False,
+        italic=True,
+    )
+
+    p_right_2 = right_cell.add_paragraph()
+    style_paragraph(p_right_2, WD_ALIGN_PARAGRAPH.RIGHT)
+    style_run_custom(
+        p_right_2.add_run(IJRSS_HOMEPAGE),
+        color=IJRSS_BLUE,
+        size=Pt(12),
+        bold=False,
+        underline=True,
+    )
+    style_run_custom(
+        p_right_2.add_run(f", Email: {IJRSS_EMAIL}"),
+        color=BLACK,
+        size=Pt(12),
+        bold=False,
+    )
+
+
+def build_footer_ijmie(section):
+    section.footer_distance = Inches(0.25)
+    section.different_first_page_header_footer = True
+
+    for footer in _iter_footer_variants(section):
+        footer.is_linked_to_previous = False
+        _populate_footer_story_ijmie(footer, section)
+
+
+def apply_font(doc, *, font_name="Times New Roman", font_size=Pt(9)):
     clean_blank_paragraphs(doc)
     def iter_block_items(parent):
         if isinstance(parent, DocxDocument):
@@ -415,8 +861,8 @@ def apply_font(doc):
     for paragraph in paragraphs:
         style_paragraph(paragraph, paragraph.alignment)
         for run in paragraph.runs:
-            run.font.name = "Times New Roman"
-            run.font.size = Pt(9)
+            run.font.name = font_name
+            run.font.size = font_size
 
 
 def format_docx_files(
@@ -429,7 +875,11 @@ def format_docx_files(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    left_image, right_image = ensure_reference_images(str(output_dir), reference_dir=reference_dir)
+    template = (getattr(config, "template", None) or "msw").strip().lower()
+    if template == "msw":
+        left_image, right_image = ensure_reference_images(str(output_dir), reference_dir=reference_dir)
+    else:
+        left_image, right_image = "", ""
 
     current_page = int(config.start_page)
     output_paths = []
@@ -443,19 +893,43 @@ def format_docx_files(
 
         doc = Document(str(input_path))
         doc.settings.odd_and_even_pages_header_footer = False
-        apply_font(doc)
+        if template in ("ijrss", "ijmie"):
+            apply_font(doc, font_size=Pt(12))
+        else:
+            apply_font(doc, font_size=Pt(9))
         for section in doc.sections:
-            build_header(
-                section,
-                current_page,
-                end_page,
-                left_image,
-                right_image,
-                volume=str(config.volume),
-                paper_year=str(config.paper_year),
-                issue=str(config.issue),
-            )
-            build_footer(section)
+            if template == "ijrss":
+                build_header_ijrss(
+                    section,
+                    volume=str(config.volume),
+                    issue=str(config.issue),
+                    paper_year=str(config.paper_year),
+                    paper_month=str(getattr(config, "paper_month", "March") or "March"),
+                )
+                build_footer_ijrss(section)
+            elif template == "ijmie":
+                build_header_ijmie(
+                    section,
+                    volume=str(config.volume),
+                    issue=str(config.issue),
+                    paper_year=str(config.paper_year),
+                    paper_month=str(getattr(config, "paper_month", "March") or "March"),
+                )
+                build_footer_ijmie(section)
+            elif template == "msw":
+                build_header(
+                    section,
+                    current_page,
+                    end_page,
+                    left_image,
+                    right_image,
+                    volume=str(config.volume),
+                    paper_year=str(config.paper_year),
+                    issue=str(config.issue),
+                )
+                build_footer(section)
+            else:
+                raise ValueError(f"Unknown template: {template!r} (expected 'msw', 'ijrss', or 'ijmie')")
         set_starting_page_number(doc, current_page)
 
         out_path = output_dir / input_path.name
